@@ -1,4 +1,3 @@
-Gemini said
 ### YouTube DownloaderX
 A simple, cross-platform Python script to download YouTube videos in the highest available quality (up to 4K) using the yt-dlp library.
 
