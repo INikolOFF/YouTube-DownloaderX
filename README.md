@@ -8,9 +8,9 @@ A simple, cross-platform Python script to download YouTube videos in the highest
 
 2. [**FFmpeg:**](https://ffmpeg.org) Required for merging high-quality video and audio streams.
 
-•  **macOS:** Install via Homebrew: ``` brew install ffmpeg ```
+*  **macOS:** Install via Homebrew: ``` brew install ffmpeg ```
 
-•  **Windows:** Download from ffmpeg.org and add the bin folder to your PATH.
+*  **Windows:** Download from ffmpeg.org and add the bin folder to your PATH.
 
 **Installation**
 
