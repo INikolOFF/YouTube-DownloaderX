@@ -24,9 +24,11 @@ pip install yt-dlp
 ```bash
 python main.py
  ```
-2. Paste the YouTube URL when prompted.
+2. Paste the YouTube URL when prompted (works with both single videos and playlists).
 
-3. The video will be saved automatically in your system's **Downloads** folder.
+3. The video(s) will be saved automatically in your system's **Downloads** folder.
+   - Single videos: Saved directly in Downloads
+   - Playlists: Saved in a subfolder named after the playlist
 
 **Features** 
 
@@ -35,12 +37,16 @@ python main.py
 *  **Cross-Platform:** Works on Windows and macOS by dynamically resolving file paths.
 
 *  **Auto-Merge:** Uses FFmpeg to provide a single MP4 file for resolutions above 720p.
+
+*  **Archive Mode:** Keeps track of downloaded videos to avoid duplicates.
+
+*  **Playlist Support:** Automatically detects and downloads all videos from a playlist link.
 ********************************************************************************************
 ##  Planned Features
 
 ### Core Download Features
 - [x] **Archive Mode**: Keep a history of downloaded video IDs to avoid duplicates.
-- [ ] **Playlist Support**: Automatically detect and download all videos from a playlist link.
+- [x] **Playlist Support**: Automatically detect and download all videos from a playlist link.
 - [ ] **Batch Processing**: Logic to read and download a list of URLs from a text file.
 - [ ] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
 - [ ] **Duplicate Detection**: Compare video hashes and file fingerprints to prevent redundant downloads.
