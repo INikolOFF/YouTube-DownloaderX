@@ -39,7 +39,7 @@ python main.py
 ##  Planned Features
 
 ### Core Download Features
-- [ ] **Archive Mode**: Keep a history of downloaded video IDs to avoid duplicates.
+- [x] **Archive Mode**: Keep a history of downloaded video IDs to avoid duplicates.
 - [ ] **Playlist Support**: Automatically detect and download all videos from a playlist link.
 - [ ] **Batch Processing**: Logic to read and download a list of URLs from a text file.
 - [ ] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
