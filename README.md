@@ -49,6 +49,8 @@ python main.py
 *  **Playlist Support:** Automatically detects and downloads all videos from a playlist link.
 
 *  **Format Selection:** Choose between video (MP4) or audio-only formats (MP3, M4A, WAV).
+
+*  **Download Statistics:** Displays detailed statistics after playlist downloads (success rate, failed items, etc.).
 ********************************************************************************************
 ##  Planned Features
 
