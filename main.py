@@ -70,6 +70,11 @@ def get_format_options(format_choice):
 
 def is_playlist(url):
     """Check if the URL is a playlist"""
+    # First check if URL contains playlist parameter
+    if 'list=' in url:
+        return True
+
+    # Then use yt-dlp to verify
     ydl_opts = {'quiet': True, 'no_warnings': True, 'extract_flat': True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -77,6 +82,21 @@ def is_playlist(url):
             return info.get('_type') == 'playlist'
     except:
         return False
+
+
+def ask_playlist_or_video(url):
+    """Ask user if they want to download playlist or single video from playlist URL"""
+    print("\n⚠️  This URL contains both a video and a playlist!")
+    print("=" * 50)
+    print("1. Download only this video")
+    print("2. Download entire playlist")
+    print("-" * 50)
+
+    while True:
+        choice = input("Choose option (1-2): ").strip()
+        if choice in ['1', '2']:
+            return choice
+        print("❌ Invalid choice. Please enter 1 or 2.")
 
 
 def download_playlist(url, use_archive=True, format_choice='1'):
@@ -196,12 +216,29 @@ if __name__ == "__main__":
         # Ask for format choice
         format_choice = get_format_choice()
 
-        # Detect if URL is a playlist
+        # Detect if URL is a playlist or video with playlist parameter
         print("\n🔍 Analyzing URL...")
-        if is_playlist(link):
+
+        # Check if URL contains both video and playlist (watch?v=...&list=...)
+        if 'watch?' in link and 'list=' in link:
+            # URL contains both video and playlist - ask user what they want
+            playlist_choice = ask_playlist_or_video(link)
+
+            if playlist_choice == '2':
+                # User wants entire playlist
+                print("✓ Downloading entire playlist!")
+                download_playlist(link, use_archive, format_choice)
+            else:
+                # User wants only the video
+                print("✓ Downloading single video!")
+                download_video(link, use_archive, format_choice)
+
+        elif is_playlist(link):
+            # Pure playlist URL
             print("✓ Playlist detected!")
             download_playlist(link, use_archive, format_choice)
         else:
+            # Single video URL
             print("✓ Single video detected!")
             download_video(link, use_archive, format_choice)
     else:
