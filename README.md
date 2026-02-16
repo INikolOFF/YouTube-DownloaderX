@@ -50,6 +50,8 @@ python main.py
 
 *  **Format Selection:** Choose between video (MP4) or audio-only formats (MP3, M4A, WAV).
 
+*  **Real-time Progress Bar:** Visual progress indicator showing download speed, percentage, and ETA.
+
 *  **Download Statistics:** Displays detailed statistics after playlist downloads (success rate, failed items, etc.).
 ********************************************************************************************
 ##  Planned Features
@@ -58,8 +60,8 @@ python main.py
 - [x] **Archive Mode**: Keep a history of downloaded video IDs to avoid duplicates.
 - [x] **Playlist Support**: Automatically detect and download all videos from a playlist link.
 - [x] **Format Selection**: Choose between video and multiple audio formats (MP3, M4A, WAV).
+- [x] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
 - [ ] **Batch Processing**: Logic to read and download a list of URLs from a text file.
-- [ ] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
 - [ ] **Duplicate Detection**: Compare video hashes and file fingerprints to prevent redundant downloads.
 - [ ] **Live Stream Recorder**: Capture ongoing live streams with automatic reconnection on interruption.
 

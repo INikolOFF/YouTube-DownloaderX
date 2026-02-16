@@ -1,5 +1,63 @@
 import yt_dlp
 import os
+import sys
+
+
+def format_bytes(bytes):
+    """Convert bytes to human readable format"""
+    for unit in ['B', 'KB', 'MB', 'GB']:
+        if bytes < 1024.0:
+            return f"{bytes:.2f} {unit}"
+        bytes /= 1024.0
+    return f"{bytes:.2f} TB"
+
+
+def format_speed(speed):
+    """Convert speed to human readable format"""
+    if speed is None:
+        return "Unknown"
+    return f"{format_bytes(speed)}/s"
+
+
+def progress_hook(d):
+    """Display real-time download progress"""
+    if d['status'] == 'downloading':
+        # Get progress information
+        downloaded = d.get('downloaded_bytes', 0)
+        total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
+        speed = d.get('speed')
+        eta = d.get('eta')
+
+        # Calculate percentage
+        if total > 0:
+            percent = (downloaded / total) * 100
+        else:
+            percent = 0
+
+        # Format speed and ETA
+        speed_str = format_speed(speed) if speed else "Unknown"
+        eta_str = f"{eta}s" if eta else "Unknown"
+
+        # Create progress bar
+        bar_length = 30
+        filled_length = int(bar_length * downloaded // total) if total > 0 else 0
+        bar = '█' * filled_length + '░' * (bar_length - filled_length)
+
+        # Print progress (overwrite same line)
+        sys.stdout.write(
+            f'\r⬇️  [{bar}] {percent:.1f}% | '
+            f'{format_bytes(downloaded)}/{format_bytes(total)} | '
+            f'Speed: {speed_str} | ETA: {eta_str}   '
+        )
+        sys.stdout.flush()
+
+    elif d['status'] == 'finished':
+        downloaded = d.get('downloaded_bytes', 0)
+        sys.stdout.write(
+            f'\r✓ Download complete: {format_bytes(downloaded)}'
+            + ' ' * 50 + '\n'
+        )
+        sys.stdout.flush()
 
 
 def get_format_choice():
@@ -99,6 +157,48 @@ def ask_playlist_or_video(url):
         print("❌ Invalid choice. Please enter 1 or 2.")
 
 
+class PlaylistStats:
+    """Track playlist download statistics"""
+
+    def __init__(self):
+        self.total = 0
+        self.successful = 0
+        self.already_downloaded = 0
+        self.errors = []
+
+    def __call__(self, d):
+        """Progress hook to track downloads"""
+        if d['status'] == 'finished':
+            self.successful += 1
+        elif d['status'] == 'error':
+            self.errors.append(d.get('info_dict', {}).get('title', 'Unknown'))
+
+    def print_summary(self, playlist_title, playlist_path):
+        """Print download statistics summary"""
+        print("\n" + "=" * 70)
+        print("📊 DOWNLOAD STATISTICS")
+        print("=" * 70)
+        print(f"📦 Playlist: {playlist_title}")
+        print(f"📁 Location: {playlist_path}")
+        print(f"\n🎯 Total items in playlist: {self.total}")
+        print(f"✅ Successfully downloaded: {self.successful}")
+
+        if self.already_downloaded > 0:
+            print(f"⊘ Already in archive: {self.already_downloaded}")
+
+        failed = self.total - self.successful - self.already_downloaded
+        if failed > 0:
+            print(f"❌ Failed/Unavailable: {failed}")
+
+        # Calculate success rate
+        attempted = self.total - self.already_downloaded
+        if attempted > 0:
+            success_rate = (self.successful / attempted) * 100
+            print(f"\n📈 Success rate: {success_rate:.1f}% ({self.successful}/{attempted})")
+
+        print("=" * 70)
+
+
 def download_playlist(url, use_archive=True, format_choice='1'):
     """Download all videos from a playlist"""
     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -109,10 +209,16 @@ def download_playlist(url, use_archive=True, format_choice='1'):
     # Archive file to track downloaded videos
     archive_file = os.path.join(downloads_dir, "yt_download_archive.txt")
 
+    # Statistics tracker
+    stats = PlaylistStats()
+
     ydl_opts = {
         'outtmpl': os.path.join(downloads_dir, '%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s'),
         'noplaylist': False,  # Enable playlist download
         'ignoreerrors': True,  # Continue on errors
+        'progress_hooks': [progress_hook, stats],
+        'quiet': False,
+        'no_warnings': False,
     }
 
     # Add format-specific options
@@ -132,25 +238,45 @@ def download_playlist(url, use_archive=True, format_choice='1'):
 
             if info:
                 playlist_title = info.get('title', 'Unknown Playlist')
-                video_count = len(info.get('entries', []))
+                entries = info.get('entries', [])
+                stats.total = len(entries)
+
+                # Count how many are already downloaded
+                if use_archive and os.path.exists(archive_file):
+                    with open(archive_file, 'r') as f:
+                        archive_content = f.read()
+                        stats.already_downloaded = sum(
+                            1 for entry in entries
+                            if entry and entry.get('id') in archive_content
+                        )
 
                 print(f"\n🎬 Playlist: {playlist_title}")
-                print(f"📊 Total videos: {video_count}")
+                print(f"📊 Total videos: {stats.total}")
+                if stats.already_downloaded > 0:
+                    print(f"⊘ Already downloaded: {stats.already_downloaded}")
+                    print(f"🆕 New to download: {stats.total - stats.already_downloaded}")
                 print(f"📦 Format: {format_opts['format_name']}")
                 print("-" * 50)
 
                 # Confirm download
-                confirm = input(f"\nDownload all {video_count} items? (y/n): ").strip().lower()
+                items_to_download = stats.total - stats.already_downloaded
+                if items_to_download == 0:
+                    print("\n✓ All items already downloaded!")
+                    return
+
+                confirm = input(f"\nDownload {items_to_download} new items? (y/n): ").strip().lower()
                 if confirm != 'y':
                     print("Download cancelled.")
                     return
 
                 # Start downloading
-                print(f"\n⬇️  Starting downloads as {format_opts['format_name']}...\n")
+                print(f"\n⬇️  Starting downloads as {format_opts['format_name']}...")
+                print("=" * 70)
                 ydl.download([url])
 
-                print(f"\n✓ Playlist download complete!")
-                print(f"📁 Saved to: {os.path.join(downloads_dir, playlist_title)}")
+                # Print statistics
+                playlist_path = os.path.join(downloads_dir, playlist_title)
+                stats.print_summary(playlist_title, playlist_path)
 
     except Exception as e:
         print(f"\nError downloading playlist: {e}")
@@ -172,6 +298,7 @@ def download_video(url, use_archive=True, format_choice='1'):
         'format': format_opts['format'],
         'outtmpl': output_template,
         'noplaylist': True,
+        'progress_hooks': [progress_hook],
     }
 
     # Add postprocessors if needed (for audio conversion)
