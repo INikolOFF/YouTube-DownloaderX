@@ -26,15 +26,20 @@ python main.py
  ```
 2. Paste the YouTube URL when prompted (works with both single videos and playlists).
 
-3. Choose your download format:
+3. Choose your settings:
+   - **Archive Mode**: Skip videos that have already been downloaded (by video ID)
+   - **Duplicate Detection**: Compare file hashes to detect identical files with different names
+
+4. Choose your download format:
    - **Video (MP4)** - Best quality video with audio
    - **Audio only (MP3)** - Converted to MP3 format (192 kbps)
    - **Audio only (M4A)** - Original audio quality
    - **Audio only (WAV)** - Lossless audio format
 
-4. The file(s) will be saved automatically in your system's **Downloads** folder.
+5. The file(s) will be saved automatically in your system's **Downloads** folder.
    - Single videos: Saved directly in Downloads
    - Playlists: Saved in a subfolder named after the playlist
+   - Duplicate files: You'll be prompted to delete or keep them
 
 **Features** 
 
@@ -45,6 +50,8 @@ python main.py
 *  **Auto-Merge:** Uses FFmpeg to provide a single MP4 file for resolutions above 720p.
 
 *  **Archive Mode:** Keeps track of downloaded videos to avoid duplicates.
+
+*  **Duplicate Detection:** Compares file hashes (SHA-256) to detect identical files and prevent redundant downloads.
 
 *  **Playlist Support:** Automatically detects and downloads all videos from a playlist link.
 
@@ -61,8 +68,7 @@ python main.py
 - [x] **Playlist Support**: Automatically detect and download all videos from a playlist link.
 - [x] **Format Selection**: Choose between video and multiple audio formats (MP3, M4A, WAV).
 - [x] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
-- [ ] **Batch Processing**: Logic to read and download a list of URLs from a text file.
-- [ ] **Duplicate Detection**: Compare video hashes and file fingerprints to prevent redundant downloads.
+- [x] **Duplicate Detection**: Compare video hashes and file fingerprints to prevent redundant downloads.
 - [ ] **Live Stream Recorder**: Capture ongoing live streams with automatic reconnection on interruption.
 
 ### Quality & Format Options

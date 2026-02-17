@@ -1,6 +1,8 @@
 import yt_dlp
 import os
 import sys
+import hashlib
+import json
 
 
 def format_bytes(bytes):
@@ -17,6 +19,60 @@ def format_speed(speed):
     if speed is None:
         return "Unknown"
     return f"{format_bytes(speed)}/s"
+
+
+def calculate_file_hash(file_path, algorithm='sha256'):
+    """Calculate hash of a file for duplicate detection"""
+    hash_func = hashlib.sha256() if algorithm == 'sha256' else hashlib.md5()
+
+    try:
+        with open(file_path, 'rb') as f:
+            # Read file in chunks to handle large files
+            for chunk in iter(lambda: f.read(8192), b''):
+                hash_func.update(chunk)
+        return hash_func.hexdigest()
+    except Exception as e:
+        print(f"⚠️ Warning: Could not calculate hash for {file_path}: {e}")
+        return None
+
+
+def load_hash_database(db_path):
+    """Load the hash database from JSON file"""
+    if os.path.exists(db_path):
+        try:
+            with open(db_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            print(f"⚠️ Warning: Could not load hash database: {e}")
+            return {}
+    return {}
+
+
+def save_hash_database(db_path, hash_db):
+    """Save the hash database to JSON file"""
+    try:
+        with open(db_path, 'w', encoding='utf-8') as f:
+            json.dump(hash_db, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        print(f"⚠️ Warning: Could not save hash database: {e}")
+
+
+def check_duplicate(file_hash, hash_db):
+    """Check if file hash exists in database"""
+    if file_hash in hash_db:
+        return hash_db[file_hash]
+    return None
+
+
+def add_to_hash_database(file_path, file_hash, hash_db, db_path, title=None):
+    """Add file hash to database with metadata"""
+    hash_db[file_hash] = {
+        'path': file_path,
+        'title': title or os.path.basename(file_path),
+        'size': os.path.getsize(file_path) if os.path.exists(file_path) else 0,
+        'added': os.path.getctime(file_path) if os.path.exists(file_path) else 0
+    }
+    save_hash_database(db_path, hash_db)
 
 
 def progress_hook(d):
@@ -282,7 +338,7 @@ def download_playlist(url, use_archive=True, format_choice='1'):
         print(f"\nError downloading playlist: {e}")
 
 
-def download_video(url, use_archive=True, format_choice='1'):
+def download_video(url, use_archive=True, format_choice='1', enable_duplicate_check=True):
     """Download a single video"""
     # Cross-platform way to target the user's Downloads folder
     downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
@@ -293,6 +349,10 @@ def download_video(url, use_archive=True, format_choice='1'):
 
     # Archive file to track downloaded videos
     archive_file = os.path.join(downloads_dir, "yt_download_archive.txt")
+
+    # Hash database for duplicate detection
+    hash_db_path = os.path.join(downloads_dir, "yt_hash_database.json")
+    hash_db = load_hash_database(hash_db_path) if enable_duplicate_check else {}
 
     ydl_opts = {
         'format': format_opts['format'],
@@ -310,6 +370,9 @@ def download_video(url, use_archive=True, format_choice='1'):
         ydl_opts['download_archive'] = archive_file
         print(f"Archive mode enabled. Tracking downloads in: {archive_file}")
 
+    if enable_duplicate_check:
+        print(f"🔍 Duplicate detection enabled. Hash database: {hash_db_path}")
+
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             # Download file to Downloads folder
@@ -318,8 +381,59 @@ def download_video(url, use_archive=True, format_choice='1'):
 
             # Check if video was actually downloaded or skipped
             if info:
-                print(f"\n✓ Download successful: {info.get('title', 'Unknown')}")
+                video_title = info.get('title', 'Unknown')
+                print(f"\n✓ Download successful: {video_title}")
                 print(f"📦 Format: {format_opts['format_name']}")
+
+                # Duplicate detection - calculate hash of downloaded file
+                if enable_duplicate_check:
+                    # Find the downloaded file
+                    downloaded_file = None
+                    ext = info.get('ext', 'mp4')
+
+                    # Handle audio conversions - check for converted file extensions
+                    if 'postprocessors' in ydl_opts:
+                        for pp in ydl_opts['postprocessors']:
+                            if pp.get('key') == 'FFmpegExtractAudio':
+                                ext = pp.get('preferredcodec', ext)
+
+                    expected_filename = f"{video_title}.{ext}"
+                    downloaded_file = os.path.join(downloads_dir, expected_filename)
+
+                    # Check if file exists and calculate hash
+                    if os.path.exists(downloaded_file):
+                        print(f"\n🔍 Checking for duplicates...")
+                        file_hash = calculate_file_hash(downloaded_file)
+
+                        if file_hash:
+                            # Check if this hash already exists
+                            duplicate = check_duplicate(file_hash, hash_db)
+
+                            if duplicate and duplicate['path'] != downloaded_file:
+                                print(f"\n⚠️  DUPLICATE DETECTED!")
+                                print(f"This file is identical to:")
+                                print(f"  📁 {duplicate['path']}")
+                                print(f"  📝 {duplicate['title']}")
+                                print(f"  💾 Size: {format_bytes(duplicate['size'])}")
+
+                                # Ask user what to do
+                                action = input(
+                                    f"\nDelete duplicate file '{expected_filename}'? (y/n): ").strip().lower()
+                                if action == 'y':
+                                    try:
+                                        os.remove(downloaded_file)
+                                        print(f"✓ Duplicate file deleted.")
+                                    except Exception as e:
+                                        print(f"❌ Could not delete file: {e}")
+                                else:
+                                    print(f"⊘ Keeping both files.")
+                                    # Add to database anyway
+                                    add_to_hash_database(downloaded_file, file_hash, hash_db, hash_db_path, video_title)
+                            else:
+                                # No duplicate found - add to database
+                                add_to_hash_database(downloaded_file, file_hash, hash_db, hash_db_path, video_title)
+                                print(f"✓ File fingerprint saved to database.")
+
     except yt_dlp.utils.DownloadError as e:
         if "has already been recorded in the archive" in str(e):
             print(f"\n⊘ Video already downloaded (found in archive), skipping...")
@@ -340,6 +454,10 @@ if __name__ == "__main__":
         use_archive_input = input("Enable archive mode to skip duplicates? (y/n): ").strip().lower()
         use_archive = use_archive_input != 'n'
 
+        # Ask user if they want duplicate detection
+        duplicate_check_input = input("Enable duplicate detection (compare file hashes)? (y/n): ").strip().lower()
+        enable_duplicate_check = duplicate_check_input != 'n'
+
         # Ask for format choice
         format_choice = get_format_choice()
 
@@ -358,7 +476,7 @@ if __name__ == "__main__":
             else:
                 # User wants only the video
                 print("✓ Downloading single video!")
-                download_video(link, use_archive, format_choice)
+                download_video(link, use_archive, format_choice, enable_duplicate_check)
 
         elif is_playlist(link):
             # Pure playlist URL
@@ -367,6 +485,6 @@ if __name__ == "__main__":
         else:
             # Single video URL
             print("✓ Single video detected!")
-            download_video(link, use_archive, format_choice)
+            download_video(link, use_archive, format_choice, enable_duplicate_check)
     else:
         print("No URL provided.")
