@@ -13,12 +13,16 @@ A simple, cross-platform Python script to download YouTube videos in the highest
 
 **Installation**
 
-Install the required library using pip:
+Install the required libraries using pip:
 
 ```bash
-pip install yt-dlp 
+pip install yt-dlp flask
 ```
+
+**Note:** Flask is only required if you want to use the web interface. For command-line usage, only `yt-dlp` is needed.
 ### Usage
+
+#### Command Line Interface
 
 1. Run the script:
 ```bash
@@ -41,6 +45,23 @@ python main.py
    - Playlists: Saved in a subfolder named after the playlist
    - Duplicate files: You'll be prompted to delete or keep them
 
+#### Web Interface (Remote Access)
+
+1. Start the web server:
+```bash
+python web_interface.py
+```
+
+2. Open your browser and navigate to:
+   - Local access: `http://localhost:5000`
+   - Remote access: `http://YOUR_IP:5000` (from another device on the same network)
+
+3. Use the web interface to:
+   - Enter YouTube URLs
+   - Select format and options
+   - Monitor real-time download progress
+   - View download history
+
 **Features** 
 
 *  **Best Quality:** Automatically selects the best video and audio streams.
@@ -52,6 +73,8 @@ python main.py
 *  **Archive Mode:** Keeps track of downloaded videos to avoid duplicates.
 
 *  **Duplicate Detection:** Compares file hashes (SHA-256) to detect identical files and prevent redundant downloads.
+
+*  **Remote Web Interface:** Access downloader from any device via browser with real-time progress tracking.
 
 *  **Playlist Support:** Automatically detects and downloads all videos from a playlist link.
 
@@ -88,5 +111,5 @@ python main.py
 ### Platform & Integration
 - [ ] **Multi-Platform Support**: Extend functionality to support TikTok, Instagram, Twitter, and Vimeo downloads.
 - [ ] **Automatic Updates**: Scripted check to ensure dependencies are always up to date.
-- [ ] **Remote Web Interface**: A web-based dashboard for remote download management.
+- [x] **Remote Web Interface**: A web-based dashboard for remote download management.
 - [ ] **System Tray Minimization**: Allow the application to run as a background process.
