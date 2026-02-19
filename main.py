@@ -75,6 +75,17 @@ def add_to_hash_database(file_path, file_hash, hash_db, db_path, title=None):
     save_hash_database(db_path, hash_db)
 
 
+def sanitize_filename(filename):
+    """Remove illegal characters from filename for Windows compatibility"""
+    # Windows illegal characters: < > : " / \ | ? *
+    illegal_chars = '<>:"/\\|?*'
+    for char in illegal_chars:
+        filename = filename.replace(char, '_')
+    # Remove leading/trailing spaces and dots
+    filename = filename.strip('. ')
+    return filename
+
+
 def progress_hook(d):
     """Display real-time download progress"""
     if d['status'] == 'downloading':
