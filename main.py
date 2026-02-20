@@ -109,13 +109,18 @@ def progress_hook(d):
 
         # Create progress bar
         bar_length = 30
-        filled_length = int(bar_length * downloaded // total) if total > 0 else 0
         bar = '█' * filled_length + '░' * (bar_length - filled_length)
+
+        # Format total size
+        if total > 0:
+            total_str = format_bytes(total)
+        else:
+            total_str = "Unknown"
 
         # Print progress (overwrite same line)
         sys.stdout.write(
             f'\r⬇️  [{bar}] {percent:.1f}% | '
-            f'{format_bytes(downloaded)}/{format_bytes(total)} | '
+            f'{format_bytes(downloaded)}/{total_str} | '
             f'Speed: {speed_str} | ETA: {eta_str}   '
         )
         sys.stdout.flush()
