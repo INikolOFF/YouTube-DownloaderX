@@ -98,8 +98,10 @@ def progress_hook(d):
         # Calculate percentage
         if total > 0:
             percent = (downloaded / total) * 100
+            filled_length = int(30 * downloaded // total)
         else:
             percent = 0
+            filled_length = 0
 
         # Format speed and ETA
         speed_str = format_speed(speed) if speed else "Unknown"
