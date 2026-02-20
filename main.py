@@ -207,7 +207,7 @@ def is_playlist(url):
         return True
 
     # Then use yt-dlp to verify
-    ydl_opts = {'quiet': True, 'no_warnings': True, 'extract_flat': True}
+    ydl_opts = {'quiet': True, 'no_warnings': True, 'extract_flat': True, 'socket_timeout': 30}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
