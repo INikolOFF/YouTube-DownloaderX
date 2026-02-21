@@ -466,7 +466,7 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
 
                                 # Ask user what to do
                                 action = input(
-                                    f"\nDelete duplicate file '{expected_filename}'? (y/n): ").strip().lower()
+                                    f"\nDelete duplicate file '{os.path.basename(downloaded_file)}'? (y/n): ").strip().lower()
                                 if action == 'y':
                                     try:
                                         os.remove(downloaded_file)
