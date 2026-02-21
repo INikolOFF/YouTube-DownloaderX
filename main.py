@@ -481,6 +481,8 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
                                 # No duplicate found - add to database
                                 add_to_hash_database(downloaded_file, file_hash, hash_db, hash_db_path, video_title)
                                 print(f"✓ File fingerprint saved to database.")
+                    else:
+                        print(f"⚠️ Warning: Could not find downloaded file for duplicate check.")
 
     except yt_dlp.utils.DownloadError as e:
         if "has already been recorded in the archive" in str(e):
