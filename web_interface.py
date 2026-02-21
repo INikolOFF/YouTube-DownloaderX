@@ -4,76 +4,121 @@ import json
 import threading
 from datetime import datetime
 from queue import Queue
-import main  # Import functions from main.py
+import main
 
 app = Flask(__name__)
 
-# Store active downloads
 active_downloads = {}
 download_queue = Queue()
 download_history = []
 
 
 class WebProgressHook:
-    """Custom progress hook for web interface"""
+    """Progress hook with cancellation support"""
 
-    def __init__(self, download_id):
+    def __init__(self, download_id, is_playlist=False, total_videos=1):
         self.download_id = download_id
-        self.progress_data = {
-            'status': 'downloading',
-            'percent': 0,
-            'downloaded': 0,
-            'total': 0,
-            'speed': 0,
-            'eta': 0
-        }
+        self.is_playlist = is_playlist
+        self.total_videos = total_videos
+        self.current_video = 0
+        self.video_title = ""
 
     def __call__(self, d):
+        # Check for cancellation
+        if active_downloads.get(self.download_id, {}).get('cancelled'):
+            raise Exception('CANCELLED')
+
+        # Track playlist video changes
+        if d['status'] == 'started':
+            self.current_video += 1
+            self.video_title = d.get('info_dict', {}).get('title', 'Unknown')
+
         if d['status'] == 'downloading':
             downloaded = d.get('downloaded_bytes', 0)
             total = d.get('total_bytes') or d.get('total_bytes_estimate', 0)
             speed = d.get('speed', 0)
             eta = d.get('eta', 0)
 
-            self.progress_data.update({
-                'status': 'downloading',
-                'percent': (downloaded / total * 100) if total > 0 else 0,
+            # Calculate overall playlist progress
+            if self.is_playlist and self.total_videos > 0:
+                video_progress = (downloaded / total * 100) if total > 0 else 0
+                overall_percent = ((self.current_video - 1) / self.total_videos * 100) + (
+                            video_progress / self.total_videos)
+            else:
+                overall_percent = (downloaded / total * 100) if total > 0 else 0
+
+            active_downloads[self.download_id].update({
+                'status': 'downloading_playlist' if self.is_playlist else 'downloading',
+                'percent': overall_percent,
                 'downloaded': main.format_bytes(downloaded),
                 'total': main.format_bytes(total),
                 'speed': main.format_speed(speed),
-                'eta': f"{eta}s" if eta else "Unknown"
+                'eta': f"{eta}s" if eta else "Unknown",
+                'current_video': self.current_video,
+                'total_videos': self.total_videos,
+                'video_title': self.video_title
             })
-
-            active_downloads[self.download_id] = self.progress_data
 
         elif d['status'] == 'finished':
-            self.progress_data.update({
-                'status': 'finished',
-                'percent': 100
+            active_downloads[self.download_id].update({
+                'status': 'downloading_playlist' if self.is_playlist else 'finished',
+                'current_video': self.current_video,
+                'total_videos': self.total_videos
             })
-            active_downloads[self.download_id] = self.progress_data
 
 
-def download_worker(url, format_choice, use_archive, enable_duplicate_check, download_id):
-    """Background worker for downloads"""
+def download_worker(url, format_choice, use_archive, enable_duplicate_check, download_id, is_playlist=False):
+    """Background download worker"""
     try:
-        # Create custom progress hook
-        progress_hook = WebProgressHook(download_id)
-
-        # Modify download_video to use custom progress hook
         downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
-        output_template = os.path.join(downloads_dir, "%(title)s.%(ext)s")
         format_opts = main.get_format_options(format_choice)
         archive_file = os.path.join(downloads_dir, "yt_download_archive.txt")
-        hash_db_path = os.path.join(downloads_dir, "yt_hash_database.json")
-        hash_db = main.load_hash_database(hash_db_path) if enable_duplicate_check else {}
 
+        # Init active download
+        active_downloads[download_id] = {
+            'status': 'starting',
+            'percent': 0,
+            'cancelled': False,
+            'url': url,
+            'is_playlist': is_playlist,
+            'current_video': 0,
+            'total_videos': 0
+        }
+
+        import yt_dlp
+
+        # First extract info to get playlist count
+        info_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': True,
+            'socket_timeout': 30,
+        }
+
+        total_videos = 1
+        playlist_title = "Unknown"
+
+        if is_playlist:
+            with yt_dlp.YoutubeDL(info_opts) as ydl:
+                info = ydl.extract_info(url, download=False)
+                if info:
+                    entries = [e for e in info.get('entries', []) if e]
+                    total_videos = len(entries)
+                    playlist_title = info.get('title', 'Unknown Playlist')
+
+            active_downloads[download_id].update({
+                'total_videos': total_videos,
+                'title': playlist_title
+            })
+
+        # Setup download options
         ydl_opts = {
             'format': format_opts['format'],
-            'outtmpl': output_template,
-            'noplaylist': True,
-            'progress_hooks': [progress_hook],
-            'quiet': True
+            'outtmpl': os.path.join(downloads_dir, '%(title)s.%(ext)s'),
+            'ignoreerrors': True,
+            'quiet': True,
+            'socket_timeout': 30,
+            'progress_hooks': [WebProgressHook(download_id, is_playlist, total_videos)]
         }
 
         if 'postprocessors' in format_opts:
@@ -82,101 +127,153 @@ def download_worker(url, format_choice, use_archive, enable_duplicate_check, dow
         if use_archive:
             ydl_opts['download_archive'] = archive_file
 
-        import yt_dlp
+        if is_playlist:
+            ydl_opts['noplaylist'] = False
+            ydl_opts['outtmpl'] = os.path.join(downloads_dir, '%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s')
+        else:
+            ydl_opts['noplaylist'] = True
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
 
             if info:
-                video_title = info.get('title', 'Unknown')
+                title = info.get('title', 'Unknown')
+                if is_playlist:
+                    entries = [e for e in info.get('entries', []) if e]
+                    title = f"{playlist_title} ({len(entries)} videos)"
 
-                # Add to history
+                # Check if cancelled
+                if active_downloads[download_id].get('cancelled'):
+                    active_downloads[download_id]['status'] = 'stopped'
+                else:
+                    active_downloads[download_id].update({
+                        'status': 'completed',
+                        'percent': 100,
+                        'title': title
+                    })
+
                 download_history.append({
                     'id': download_id,
-                    'title': video_title,
+                    'title': title,
                     'url': url,
-                    'format': format_opts['format_name'],
-                    'status': 'completed',
+                    'fmt': format_choice,
+                    'status': 'completed' if not active_downloads[download_id].get('cancelled') else 'stopped',
                     'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                 })
 
-                # Handle duplicate detection if enabled
-                if enable_duplicate_check:
-                    ext = info.get('ext', 'mp4')
-                    if 'postprocessors' in ydl_opts:
-                        for pp in ydl_opts['postprocessors']:
-                            if pp.get('key') == 'FFmpegExtractAudio':
-                                ext = pp.get('preferredcodec', ext)
-
-                    expected_filename = f"{video_title}.{ext}"
-                    downloaded_file = os.path.join(downloads_dir, expected_filename)
-
-                    if os.path.exists(downloaded_file):
-                        file_hash = main.calculate_file_hash(downloaded_file)
-                        if file_hash:
-                            duplicate = main.check_duplicate(file_hash, hash_db)
-                            if not duplicate or duplicate['path'] == downloaded_file:
-                                main.add_to_hash_database(downloaded_file, file_hash, hash_db, hash_db_path,
-                                                          video_title)
-
-                active_downloads[download_id]['status'] = 'completed'
-                active_downloads[download_id]['title'] = video_title
-
     except Exception as e:
-        active_downloads[download_id] = {
-            'status': 'error',
-            'error': str(e)
-        }
-        download_history.append({
-            'id': download_id,
-            'url': url,
-            'status': 'error',
-            'error': str(e),
-            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        })
+        if 'CANCELLED' in str(e):
+            active_downloads[download_id]['status'] = 'stopped'
+            download_history.append({
+                'id': download_id,
+                'url': url,
+                'status': 'stopped',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
+        else:
+            active_downloads[download_id] = {
+                'status': 'error',
+                'error': str(e)
+            }
+            download_history.append({
+                'id': download_id,
+                'url': url,
+                'status': 'error',
+                'error': str(e),
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            })
 
 
 @app.route('/')
 def index():
-    """Main page"""
     return render_template('index.html')
 
 
-@app.route('/download', methods=['POST'])
-def start_download():
-    """Start a new download"""
+@app.route('/playlist_info', methods=['POST'])
+def playlist_info():
     data = request.json
     url = data.get('url')
-    format_choice = data.get('format', '1')
-    use_archive = data.get('archive', True)
-    enable_duplicate_check = data.get('duplicate_check', True)
 
     if not url:
         return jsonify({'error': 'No URL provided'}), 400
 
-    # Generate download ID
+    try:
+        has_video = 'watch?' in url and 'v=' in url
+        has_playlist = 'list=' in url
+
+        if not has_playlist:
+            return jsonify({'is_playlist': False, 'has_video': has_video, 'count': 0})
+
+        import yt_dlp
+        ydl_opts = {
+            'quiet': True,
+            'no_warnings': True,
+            'extract_flat': 'in_playlist',
+            'socket_timeout': 60,
+            'ignoreerrors': True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+
+            if info and info.get('_type') == 'playlist':
+                entries = [e for e in info.get('entries', []) if e]
+                return jsonify({
+                    'is_playlist': True,
+                    'has_video': has_video,
+                    'title': info.get('title', 'Unknown'),
+                    'count': len(entries)
+                })
+
+        return jsonify({'is_playlist': False, 'has_video': has_video, 'count': 0})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/download', methods=['POST'])
+def start_download():
+    data = request.json
+    url = data.get('url')
+    format_choice = data.get('fmt', '1')
+    use_archive = data.get('arc', True)
+    enable_duplicate_check = data.get('dup', True)
+    download_mode = data.get('mode', 'auto')
+
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+
+    is_pl = main.is_playlist(url) if download_mode == 'auto' else (download_mode == 'playlist')
+    if download_mode == 'video':
+        is_pl = False
+
     download_id = f"dl_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
-    # Initialize progress
-    active_downloads[download_id] = {
-        'status': 'starting',
-        'percent': 0,
-        'url': url
-    }
-
-    # Start download in background thread
     thread = threading.Thread(
         target=download_worker,
-        args=(url, format_choice, use_archive, enable_duplicate_check, download_id)
+        args=(url, format_choice, use_archive, enable_duplicate_check, download_id, is_pl)
     )
     thread.daemon = True
     thread.start()
 
-    return jsonify({'download_id': download_id, 'status': 'started'})
+    return jsonify({
+        'download_id': download_id,
+        'status': 'started',
+        'is_playlist': is_pl
+    })
+
+
+@app.route('/stop/<download_id>', methods=['POST'])
+def stop_download(download_id):
+    """Stop active download"""
+    if download_id in active_downloads:
+        active_downloads[download_id]['cancelled'] = True
+        active_downloads[download_id]['status'] = 'stopping'
+        return jsonify({'message': 'Stopping download...', 'status': 'stopping'})
+    return jsonify({'error': 'Download not found'}), 404
 
 
 @app.route('/progress/<download_id>')
 def get_progress(download_id):
-    """Get progress of a specific download"""
     if download_id in active_downloads:
         return jsonify(active_downloads[download_id])
     return jsonify({'error': 'Download not found'}), 404
@@ -184,13 +281,11 @@ def get_progress(download_id):
 
 @app.route('/history')
 def get_history():
-    """Get download history"""
     return jsonify(download_history)
 
 
 @app.route('/active')
 def get_active():
-    """Get all active downloads"""
     return jsonify(active_downloads)
 
 
@@ -203,6 +298,4 @@ if __name__ == '__main__':
     print("🌍 Or from another device: http://YOUR_IP:5001")
     print("\n⚠️  Press CTRL+C to stop the server\n")
     print("=" * 60)
-
-    # Run Flask app on port 5001 to avoid conflict with macOS AirPlay
     app.run(host='0.0.0.0', port=5001, debug=True, threaded=True)
