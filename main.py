@@ -293,6 +293,7 @@ def download_playlist(url, use_archive=True, format_choice='1'):
         'progress_hooks': [progress_hook, stats],
         'quiet': False,
         'no_warnings': False,
+        'socket_timeout': 30,  # Prevent hanging on slow connections
     }
 
     # Add format-specific options
