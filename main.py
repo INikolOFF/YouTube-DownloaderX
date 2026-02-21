@@ -416,11 +416,40 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
                             if pp.get('key') == 'FFmpegExtractAudio':
                                 ext = pp.get('preferredcodec', ext)
 
-                    expected_filename = f"{video_title}.{ext}"
-                    downloaded_file = os.path.join(downloads_dir, expected_filename)
+                    # Try to find the actual downloaded file
+                    # yt-dlp might sanitize the filename, so we need to search for it
+                    possible_filenames = [
+                        f"{video_title}.{ext}",
+                        f"{sanitize_filename(video_title)}.{ext}"
+                    ]
+
+                    downloaded_file = None
+                    for filename in possible_filenames:
+                        filepath = os.path.join(downloads_dir, filename)
+                        if os.path.exists(filepath):
+                            downloaded_file = filepath
+                            break
+
+                    # If still not found, search Downloads directory for recent files
+                    if not downloaded_file:
+                        try:
+                            # Get all files in Downloads with matching extension
+                            recent_files = []
+                            for file in os.listdir(downloads_dir):
+                                if file.endswith(f".{ext}"):
+                                    filepath = os.path.join(downloads_dir, file)
+                                    if os.path.isfile(filepath):
+                                        recent_files.append((filepath, os.path.getctime(filepath)))
+
+                            # Get the most recently created file
+                            if recent_files:
+                                recent_files.sort(key=lambda x: x[1], reverse=True)
+                                downloaded_file = recent_files[0][0]
+                        except Exception as e:
+                            print(f"⚠️ Warning: Could not search for downloaded file: {e}")
 
                     # Check if file exists and calculate hash
-                    if os.path.exists(downloaded_file):
+                    if downloaded_file and os.path.exists(downloaded_file):
                         print(f"\n🔍 Checking for duplicates...")
                         file_hash = calculate_file_hash(downloaded_file)
 
