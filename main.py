@@ -378,6 +378,7 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
         'outtmpl': output_template,
         'noplaylist': True,
         'progress_hooks': [progress_hook],
+        'socket_timeout': 30,  # Prevent hanging on slow connections
     }
 
     # Add postprocessors if needed (for audio conversion)
