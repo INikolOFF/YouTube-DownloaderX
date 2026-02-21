@@ -1,5 +1,8 @@
 ### YouTube DownloaderX
+
 A simple, cross-platform Python script to download YouTube videos in the highest available quality (up to 4K) using the yt-dlp library.
+
+![Interface Demo](downloaderx_demo.gif)
 
 **Prerequisites**
 
@@ -20,6 +23,7 @@ pip install yt-dlp flask
 ```
 
 **Note:** Flask is only required if you want to use the web interface. For command-line usage, only `yt-dlp` is needed.
+
 ### Usage
 
 #### Command Line Interface
@@ -57,9 +61,10 @@ python web_interface.py
    - Remote access: `http://YOUR_IP:5001` (from another device on the same network)
 
 3. Use the web interface to:
-   - Enter YouTube URLs
-   - Select format and options
-   - Monitor real-time download progress
+   - Enter YouTube URLs with live thumbnail preview
+   - Select format and options via dropdown menus
+   - Monitor real-time download progress with Matrix-style UI
+   - Stop active downloads with the STOP button
    - View download history
 
 **Features** 
@@ -83,6 +88,10 @@ python web_interface.py
 *  **Real-time Progress Bar:** Visual progress indicator showing download speed, percentage, and ETA.
 
 *  **Download Statistics:** Displays detailed statistics after playlist downloads (success rate, failed items, etc.).
+
+*  **Thumbnail Preview:** See video thumbnail before downloading (web interface).
+
+*  **Matrix Terminal Aesthetic:** CRT scanlines, green terminal theme, animated background.
 ********************************************************************************************
 ##  Planned Features
 
@@ -92,6 +101,7 @@ python web_interface.py
 - [x] **Format Selection**: Choose between video and multiple audio formats (MP3, M4A, WAV).
 - [x] **Real-time Progress Bar**: Display download speed, percentage, and ETA in the terminal.
 - [x] **Duplicate Detection**: Compare video hashes and file fingerprints to prevent redundant downloads.
+- [x] **Remote Web Interface**: A web-based dashboard for remote download management.
 - [ ] **Live Stream Recorder**: Capture ongoing live streams with automatic reconnection on interruption.
 
 ### Quality & Format Options
@@ -111,5 +121,4 @@ python web_interface.py
 ### Platform & Integration
 - [ ] **Multi-Platform Support**: Extend functionality to support TikTok, Instagram, Twitter, and Vimeo downloads.
 - [ ] **Automatic Updates**: Scripted check to ensure dependencies are always up to date.
-- [x] **Remote Web Interface**: A web-based dashboard for remote download management.
 - [ ] **System Tray Minimization**: Allow the application to run as a background process.
