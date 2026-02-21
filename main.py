@@ -408,7 +408,6 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
                 # Duplicate detection - calculate hash of downloaded file
                 if enable_duplicate_check:
                     # Find the downloaded file
-                    downloaded_file = None
                     ext = info.get('ext', 'mp4')
 
                     # Handle audio conversions - check for converted file extensions
