@@ -246,6 +246,16 @@ class PlaylistStats:
         elif d['status'] == 'error':
             self.errors.append(d.get('info_dict', {}).get('title', 'Unknown'))
 
+    def debug(self, msg):
+        if 'has already been recorded in the archive' in msg:
+            self.already_downloaded += 1
+
+    def warning(self, msg):
+        pass
+
+    def error(self, msg):
+        pass
+
     def print_summary(self, playlist_title, playlist_path):
         """Print download statistics summary"""
         print("\n" + "=" * 70)
@@ -290,6 +300,7 @@ def download_playlist(url, use_archive=True, format_choice='1'):
         'noplaylist': False,  # Enable playlist download
         'ignoreerrors': True,  # Continue on errors
         'progress_hooks': [progress_hook, stats],
+        'logger': stats,
         'quiet': False,
         'no_warnings': False,
         'socket_timeout': 30,  # Prevent hanging on slow connections
@@ -315,14 +326,7 @@ def download_playlist(url, use_archive=True, format_choice='1'):
                 entries = info.get('entries', [])
                 stats.total = len(entries)
 
-                # Count how many are already downloaded
-                if use_archive and os.path.exists(archive_file):
-                    with open(archive_file, 'r') as f:
-                        archive_content = f.read()
-                        stats.already_downloaded = sum(
-                            1 for entry in entries
-                            if entry and entry.get('id') in archive_content
-                        )
+
 
                 print(f"\n🎬 Playlist: {playlist_title}")
                 print(f"📊 Total videos: {stats.total}")
