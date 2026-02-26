@@ -166,6 +166,7 @@
 </div>
 
 <script>
+    // UI Fix: Reset canvas dimensions and restart animation on window resize
 const c=document.getElementById('c'),x=c.getContext('2d');
 c.width=innerWidth;c.height=innerHeight;
 const fs=16,cols=Math.floor(c.width/fs),drops=[];
