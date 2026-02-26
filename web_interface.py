@@ -129,6 +129,7 @@ def download_worker(url, format_choice, use_archive, enable_dup_check, download_
             if info:
                 title = info.get('title', 'Unknown')
                 if is_playlist:
+                    # Fix: filter out None entries to ensure accurate video count in large playlists
                     entries = [e for e in info.get('entries', []) if e]
                     title = f"{playlist_title} ({len(entries)} videos)"
 
