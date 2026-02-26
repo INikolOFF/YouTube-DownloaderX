@@ -161,7 +161,6 @@ def get_format_options(format_choice):
             'format_name': 'Video (MP4)',
             'icon': '🎬'
         }
-
     elif format_choice == '2':
         # Audio (MP3)
         return {
@@ -174,7 +173,6 @@ def get_format_options(format_choice):
             'format_name': 'Audio (MP3)',
             'icon': '🎵'
         }
-
     elif format_choice == '3':
         # Audio (M4A)
         return {
@@ -186,7 +184,6 @@ def get_format_options(format_choice):
             'format_name': 'Audio (M4A)',
             'icon': '🎵'
         }
-
     elif format_choice == '4':
         # Audio (WAV)
         return {
@@ -198,6 +195,8 @@ def get_format_options(format_choice):
             'format_name': 'Audio (WAV)',
             'icon': '🎵'
         }
+    else:
+        raise ValueError(f"Invalid format choice: '{format_choice}'. Expected '1', '2', '3', or '4'.")
 
 
 def is_playlist(url):
@@ -212,7 +211,7 @@ def is_playlist(url):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return info.get('_type') == 'playlist'
-    except:
+    except Exception:
         return False
 
 
