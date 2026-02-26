@@ -2,9 +2,12 @@
 
 ![Python](https://img.shields.io/badge/Python-3.x-blue?logo=python&logoColor=white)
 ![Flask](https://img.shields.io/badge/Web-Flask-lightgrey?logo=flask)
+![JS](https://img.shields.io/badge/Frontend-Vanilla%20JS-yellow?logo=javascript)
 ![Status](https://img.shields.io/badge/status-working-brightgreen)
 
-Download YouTube videos and playlists from the command line or through a browser. Has a Matrix-themed web UI.
+Basically a wrapper around yt-dlp with duplicate detection and a Matrix-themed web UI because why not.
+
+Download YouTube videos and playlists from the command line or through a browser. Has a Matrix-themed web UI built with vanilla JS — no frameworks.
 
 ![Demo](downloaderx_demo.gif)
 
@@ -54,14 +57,7 @@ Then open `http://localhost:5001` in your browser. From another device on the sa
 
 ## File structure
 
-```
-YouTube-DownloaderX/
-├── main.py
-├── web_interface.py
-├── templates/
-│   └── index.html
-└── README.md
-```
+Two files — `main.py` for CLI, `web_interface.py` for Flask. `templates/` folder is for the web UI.
 
 ---
 
@@ -70,11 +66,11 @@ YouTube-DownloaderX/
 - Single videos go to `~/Downloads`, playlists get their own subfolder
 - Download history in the web UI resets when you stop the server
 - Duplicate detection only runs for single video downloads — hashing a whole playlist takes too long
+- Save folder is hardcoded to `~/Downloads` — to change it you have to edit the code directly
 
 ---
 
 ## Known issues
 
-- Large playlists take a while to get video count before starting
-- File path for duplicate check might miss the file if yt-dlp sanitizes the title differently than expected
-- No way to change the save folder without editing the code
+- Large playlists take a while before downloading starts — it needs to fetch the video count first and there's no clean way around it without downloading blind
+- If yt-dlp sanitizes the title differently than I do, the duplicate check will miss the file. Haven't found a clean fix for this yet
