@@ -14,8 +14,6 @@ download_history = []
 
 
 class WebProgressHook:
-    """Progress hook with cancellation support"""
-
     def __init__(self, download_id, is_playlist=False, total_videos=1):
         self.download_id = download_id
         self.is_playlist = is_playlist
@@ -24,11 +22,9 @@ class WebProgressHook:
         self.video_title = ""
 
     def __call__(self, d):
-        # Check for cancellation
         if active_downloads.get(self.download_id, {}).get('cancelled'):
             raise Exception('CANCELLED')
 
-        # Track playlist video changes
         if d['status'] == 'started':
             self.current_video += 1
             self.video_title = d.get('info_dict', {}).get('title', 'Unknown')
@@ -39,7 +35,6 @@ class WebProgressHook:
             speed = d.get('speed', 0)
             eta = d.get('eta', 0)
 
-            # Calculate overall playlist progress
             if self.is_playlist and self.total_videos > 0:
                 video_progress = (downloaded / total * 100) if total > 0 else 0
                 overall_percent = ((self.current_video - 1) / self.total_videos * 100) + (
@@ -68,13 +63,11 @@ class WebProgressHook:
 
 
 def download_worker(url, format_choice, use_archive, enable_duplicate_check, download_id, is_playlist=False):
-    """Background download worker"""
     try:
         downloads_dir = os.path.join(os.path.expanduser("~"), "Downloads")
         format_opts = main.get_format_options(format_choice)
         archive_file = os.path.join(downloads_dir, "yt_download_archive.txt")
 
-        # Init active download
         active_downloads[download_id] = {
             'status': 'starting',
             'percent': 0,
@@ -87,7 +80,6 @@ def download_worker(url, format_choice, use_archive, enable_duplicate_check, dow
 
         import yt_dlp
 
-        # First extract info to get playlist count
         info_opts = {
             'quiet': True,
             'no_warnings': True,
@@ -111,7 +103,6 @@ def download_worker(url, format_choice, use_archive, enable_duplicate_check, dow
                 'title': playlist_title
             })
 
-        # Setup download options
         ydl_opts = {
             'format': format_opts['format'],
             'outtmpl': os.path.join(downloads_dir, '%(title)s.%(ext)s'),
@@ -128,10 +119,10 @@ def download_worker(url, format_choice, use_archive, enable_duplicate_check, dow
             ydl_opts['download_archive'] = archive_file
 
         if is_playlist:
-            ydl_opts['noplaylist'] = False
+            ydl_opts['noplaylist'] = False  # must be explicitly False, yt-dlp defaults to True in some cases
             ydl_opts['outtmpl'] = os.path.join(downloads_dir, '%(playlist)s/%(playlist_index)s - %(title)s.%(ext)s')
         else:
-            ydl_opts['noplaylist'] = True
+            ydl_opts['noplaylist'] = True  # prevent downloading the whole playlist if a list= param is present
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=True)
@@ -142,7 +133,6 @@ def download_worker(url, format_choice, use_archive, enable_duplicate_check, dow
                     entries = [e for e in info.get('entries', []) if e]
                     title = f"{playlist_title} ({len(entries)} videos)"
 
-                # Check if cancelled
                 if active_downloads[download_id].get('cancelled'):
                     active_downloads[download_id]['status'] = 'stopped'
                 else:
@@ -264,7 +254,6 @@ def start_download():
 
 @app.route('/stop/<download_id>', methods=['POST'])
 def stop_download(download_id):
-    """Stop active download"""
     if download_id in active_downloads:
         active_downloads[download_id]['cancelled'] = True
         active_downloads[download_id]['status'] = 'stopping'
@@ -290,12 +279,5 @@ def get_active():
 
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("🌐 YouTube Downloader X - Web Interface")
-    print("=" * 60)
-    print("\n🚀 Starting web server...")
-    print("📱 Access the interface at: http://localhost:5001")
-    print("🌍 Or from another device: http://YOUR_IP:5001")
-    print("\n⚠️  Press CTRL+C to stop the server\n")
-    print("=" * 60)
+    print("Starting server at http://localhost:5001")
     app.run(host='0.0.0.0', port=5001, debug=True, threaded=True)
