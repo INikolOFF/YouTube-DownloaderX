@@ -130,7 +130,8 @@ def is_playlist(url):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             return info.get('_type') == 'playlist'
-    except:
+    except Exception as e:
+        print(f"Warning: Playlist check failed - {e}")
         return False
 
 
