@@ -176,6 +176,8 @@ def download_video(url, use_archive=True, format_choice='1', enable_duplicate_ch
                     if not duplicate:
                         add_to_hash_db(downloaded_file, file_hash, hash_db, hash_db_path, video_title)
                         print("File hashed and saved.")
+                     else:
+                        print("Duplicate file detected. Skipping database update.")
     except Exception as e:
         print(f"Error: {e}")
 
